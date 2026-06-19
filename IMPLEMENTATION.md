@@ -8,7 +8,7 @@ AI consumer
     v
 +----------------+        contact window         +----------------+
 | Ground station | <============================> | Satellite node |
-| North Star node|   bandwidth / latency / loss   | North Star node|
+| OSPS endpoint  |   bandwidth / latency / loss   | OSPS endpoint  |
 +-------+--------+                                +--------+-------+
         |                                                  |
   priority queues                                    receive store
@@ -26,7 +26,7 @@ crossing the simulated link and decoded at the peer.
 
 ```text
 northstar/
-  framing.py        North Star live wire framing
+  framing.py        OSPS live wire framing
   live.py           real socket transfer and disk-backed resumption
   orbital.py        public orbital prediction interface
   cli.py            simulation CLI
@@ -86,7 +86,7 @@ Unacknowledged chunks age by ticks and become eligible for retransmission.
 
 ### Real pass predictor
 
-The North Star orbital predictor uses Skyfield's SGP4 implementation and a
+The North Star lab's orbital predictor uses Skyfield's SGP4 implementation and a
 bundled static TLE set.
 For every satellite it finds rise, culmination, and set events above the
 configured minimum elevation. Each result is converted into the existing
@@ -124,7 +124,7 @@ satellite_node.py  <-- TCP -->  channel_shim.py  <-- TCP -->  ground_station.py
 The sender never opens a direct connection to the receiver. The shim maps
 Skyfield passes onto monotonic wall-clock time. Outside line-of-sight windows,
 connections are immediately refused. During a pass, complete length-prefixed
-North Star frames are forwarded with an elevation-derived byte rate, seeded
+OSPS frames are forwarded with an elevation-derived byte rate, seeded
 packet loss, and jitter. At the pass deadline both sockets close.
 
 The sender reconnects and begins with a metadata frame. The receiver reports
