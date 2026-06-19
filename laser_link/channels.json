@@ -1,0 +1,20 @@
+[
+  {
+    "name": "North Star inter-satellite optical prototype",
+    "band_class": "Optical",
+    "wavelength_nm": 1550,
+    "nominal_bandwidth_bps": 1000000000,
+    "pointing_acquisition_seconds": 2.0,
+    "cloud_sensitive": false,
+    "notes": "Software profile only; no optical terminal is connected."
+  },
+  {
+    "name": "North Star satellite-to-ground optical prototype",
+    "band_class": "Optical",
+    "wavelength_nm": 1550,
+    "nominal_bandwidth_bps": 250000000,
+    "pointing_acquisition_seconds": 5.0,
+    "cloud_sensitive": true,
+    "notes": "Software profile only. Ground optical links require precision pointing and clear weather."
+  }
+]

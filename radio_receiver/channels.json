@@ -1,0 +1,30 @@
+[
+  {
+    "name": "ISS APRS illustrative downlink",
+    "freq_mhz": 145.825,
+    "band_class": "VHF",
+    "mode": "AFSK1200",
+    "notes": "Illustrative amateur packet channel. Availability and operating mode must be checked before use."
+  },
+  {
+    "name": "NOAA APT illustrative channel",
+    "freq_mhz": 137.1,
+    "band_class": "VHF",
+    "mode": "APT",
+    "notes": "Illustrative weather-satellite APT frequency. This scaffold does not implement APT image decoding."
+  },
+  {
+    "name": "North Star future radio experiment",
+    "freq_mhz": "TBD",
+    "band_class": "UHF",
+    "mode": "TBD",
+    "notes": "Placeholder only. Frequency selection requires legal, regulatory, hardware, and mission review."
+  },
+  {
+    "name": "North Star future optical experiment",
+    "freq_mhz": "TBD",
+    "band_class": "Optical",
+    "mode": "RAW",
+    "notes": "Registry placeholder. Optical links use the separate laser_link program, never audio_io."
+  }
+]
