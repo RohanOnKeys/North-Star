@@ -4,7 +4,7 @@ This is a receive-only software scaffold for a future VHF/UHF radio connected
 to a PC line-in or microphone jack. It is separate from the North Star laser
 program.
 
-It does **not** currently decode real ISS APRS, NOAA APT, or North Star traffic.
+It does **not** currently decode real ISS APRS, NOAA APT, or OSPS traffic.
 Those modes return an explicit `not_implemented` result. Only the generated
 synthetic tone fixtures have a working decoder.
 
