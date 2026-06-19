@@ -4,10 +4,10 @@
 
 Orbital compute nodes have useful processing and storage capacity, but their
 links to Earth are intermittent, delayed, bandwidth-limited, and occasionally
-unreliable. HTTP assumes a comparatively stable end-to-end path. North Star
-explores North Star, a session-oriented protocol
-that can move AI workload data across repeated contact windows without losing
-progress.
+unreliable. HTTP assumes a comparatively stable end-to-end path. The North Star
+lab explores the **Orbital Streaming Protocol Secure (OSPS)**, a session-oriented
+protocol that can move AI workload data across repeated contact windows without
+losing progress.
 
 This repository is a hobby-grade protocol simulation. It tests protocol
 behavior, not orbital physics or production cryptography.
@@ -49,7 +49,7 @@ behavior, not orbital physics or production cryptography.
 - A transfer can resume at the first unacknowledged chunk in a later pass.
 - Encryption is represented by a deterministic XOR stream plus HMAC-SHA256.
   This demonstrates boundaries and authentication but is not secure enough for
-  real deployment. Production North Star would use an audited AEAD construction.
+  real deployment. Production OSPS would use an audited AEAD construction.
 
 ## Functional requirements
 
