@@ -1,0 +1,22 @@
+{
+  "name": "North Star live real-orbit channel",
+  "seed": 23,
+  "orbital": {
+    "tle_file": "data/north_star_leo.tle",
+    "start_utc": "2024-05-31T00:00:00Z",
+    "duration_seconds": 86400,
+    "elevation_threshold_degrees": 10,
+    "minimum_bandwidth": 6000,
+    "maximum_bandwidth": 18000,
+    "ground_station": {
+      "name": "Bengaluru",
+      "latitude_degrees": 12.9716,
+      "longitude_degrees": 77.5946,
+      "elevation_m": 920
+    }
+  },
+  "live_channel": {
+    "loss_rate": 0.003,
+    "jitter_ms": 2
+  }
+}

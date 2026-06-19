@@ -1,0 +1,46 @@
+{
+  "name": "North Star real orbital pass simulation",
+  "seed": 11,
+  "tick_seconds": 10,
+  "pre_shared_key": "north-star-demo-key",
+  "protocol": {
+    "chunk_size": 512,
+    "retry_timeout": 2,
+    "max_retries": 5
+  },
+  "orbital": {
+    "tle_file": "data/north_star_leo.tle",
+    "start_utc": "2024-05-31T00:00:00Z",
+    "duration_seconds": 86400,
+    "elevation_threshold_degrees": 10,
+    "minimum_bandwidth": 64000,
+    "maximum_bandwidth": 2000000,
+    "latency_ms": 20,
+    "ground_station": {
+      "name": "Bengaluru",
+      "latitude_degrees": 12.9716,
+      "longitude_degrees": 77.5946,
+      "elevation_m": 920
+    }
+  },
+  "traffic": [
+    {
+      "source": "ground",
+      "type": "model",
+      "size": 150000,
+      "pattern": "NORTH-STAR-MODEL-WEIGHT-"
+    },
+    {
+      "source": "ground",
+      "type": "inference",
+      "size": 1024,
+      "pattern": "NORTH-STAR-INFERENCE-"
+    },
+    {
+      "source": "satellite",
+      "type": "telemetry",
+      "size": 4096,
+      "pattern": "ORBITAL-TELEMETRY-"
+    }
+  ]
+}
