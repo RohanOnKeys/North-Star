@@ -1,8 +1,8 @@
-# North Star Results, Speed, and Protocol Comparison
+# North Star Lab Results, Speed, and OSPS Protocol Comparison
 
 ## Executive summary
 
-North Star demonstrated reliable file delivery across repeated,
+The North Star lab demonstrated reliable file delivery across repeated,
 Skyfield-predicted orbital contact windows using three separate programs and
 real TCP sockets.
 
@@ -16,7 +16,7 @@ The strongest result is **continuity**, not universal speed superiority:
 - the educational pure-Python encryption reaches only a few MiB/s, so it must
   be replaced before high-rate RF or optical use.
 
-North Star has not yet been benchmarked head-to-head against real HTTP/3,
+OSPS has not yet been benchmarked head-to-head against real HTTP/3,
 QUIC, or BPv7 implementations under identical conditions. Therefore, no honest
 claim like "X% faster than HTTP/3" can be made yet.
 
@@ -61,7 +61,7 @@ is a test-harness outcome, not a spacecraft link-rate prediction.
 
 For each current 32 KiB DATA chunk:
 
-- North Star frame header: 20 bytes;
+- OSPS frame header: 20 bytes;
 - authentication tag: 16 bytes;
 - socket packet-length field: 4 bytes; and
 - ACK frame plus its packet-length field: 40 bytes.
@@ -112,7 +112,7 @@ or optical throughput. Production work needs audited native cryptography.
 
 ## Comparison with available protocols
 
-| Property | North Star | HTTP/1.1 or HTTP/2 | HTTP/3 over QUIC | BPv7 / CCSDS BP |
+| Property | OSPS | HTTP/1.1 or HTTP/2 | HTTP/3 over QUIC | BPv7 / CCSDS BP |
 |---|---|---|---|---|
 | Primary purpose | Orbital streaming experiment | Web request/response | Secure modern web transport | Delay-tolerant networking |
 | Durable resume after long outage | Built into live file flow | Application feature | Application feature | Core architectural concern |
@@ -126,7 +126,7 @@ or optical throughput. Production work needs audited native cryptography.
 
 ### Compared with HTTP over TCP
 
-North Star's demonstrated advantage is native resumable chunks and persisted
+OSPS's demonstrated advantage is native resumable chunks and persisted
 receive state. HTTP can resume data through range requests, ETags, multipart
 uploads, or custom APIs, but the application must build those behaviors.
 
@@ -140,13 +140,13 @@ low-latency connection establishment. Independent streams prevent loss on one
 stream from blocking every other stream. QUIC also supports connection
 migration when a usable path changes.
 
-Those are major advantages over North Star's current stop-and-wait chunk
+Those are major advantages over OSPS's current stop-and-wait chunk
 exchange.
 
 Connection migration is not the same as persisting a partially received object
 through a long period with no route and resuming it through a new application
-connection. An application can build that over HTTP/3; North Star demonstrates
-it directly.
+connection. An application can build that over HTTP/3; the North Star lab
+demonstrates it directly with OSPS.
 
 There is currently **no measured speed win over HTTP/3**. A mature QUIC stack
 would likely beat the current Python codec on a continuous link.
@@ -157,11 +157,12 @@ BPv7 is the closest architectural comparison. It supports store-carry-forward
 operation, bundle lifetimes, extension blocks, administrative records,
 multiple convergence layers, and multi-hop delay-tolerant networks.
 
-North Star is smaller and easier to inspect, but it lacks standardized endpoint
-IDs, bundle lifetimes, multi-hop routing, persistent forwarding responsibility,
-BPSec, canonical CBOR, extension blocks, and interoperability.
+OSPS is smaller and easier to inspect in the North Star lab context, but it
+lacks standardized endpoint IDs, bundle lifetimes, multi-hop routing, persistent
+forwarding responsibility, BPSec, canonical CBOR, extension blocks, and
+interoperability.
 
-North Star should eventually integrate with or move toward BPv7 rather than
+OSPS should eventually integrate with or move toward BPv7 rather than
 claim to replace it.
 
 ## What efficiency has actually been demonstrated?
@@ -188,15 +189,15 @@ Not yet demonstrated:
 A fair shootout must use the same payload, contact schedule, loss trace, and
 machine for:
 
-1. North Star;
+1. OSPS;
 2. resumable HTTPS;
 3. HTTP/3 with a production QUIC implementation;
 4. a BPv7 implementation such as ION-DTN or DTNME; and
 5. raw TCP as a control.
 
 It should report goodput, total bytes, CPU, memory, disk writes, completion
-time, reconnect cost, lost progress, and success rate. Until then, North
-Star's proven claim is **resilience**, not speed dominance.
+time, reconnect cost, lost progress, and success rate. Until then, OSPS's
+proven claim is **resilience**, not speed dominance.
 
 ## Reproduce the measurements
 
