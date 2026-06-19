@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.part
+*.state.json
+received/
+laser_received/
+live_test_received/
+model_weights*.bin
+laser_payload*.bin
+.venv/
+venv/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,50 @@
+{
+  "name": "North Star interrupted model stream",
+  "seed": 7,
+  "tick_seconds": 1,
+  "pre_shared_key": "north-star-demo-key",
+  "protocol": {
+    "chunk_size": 128,
+    "retry_timeout": 2,
+    "max_retries": 5
+  },
+  "traffic": [
+    {
+      "source": "ground",
+      "type": "model",
+      "size": 1400,
+      "pattern": "MODEL-WEIGHT-"
+    },
+    {
+      "source": "ground",
+      "type": "inference",
+      "size": 180,
+      "pattern": "INFERENCE-REQUEST-"
+    },
+    {
+      "source": "satellite",
+      "type": "telemetry",
+      "size": 220,
+      "pattern": "ORBITAL-TELEMETRY-"
+    }
+  ],
+  "contacts": [
+    {
+      "name": "pass-alpha",
+      "start": 0,
+      "duration": 8,
+      "interrupt_after": 4,
+      "bandwidth": 900,
+      "latency_ms": 120,
+      "drop_sequences": [1]
+    },
+    {
+      "name": "pass-bravo",
+      "start": 8,
+      "duration": 12,
+      "bandwidth": 1200,
+      "latency_ms": 90
+    }
+  ]
+}
+
