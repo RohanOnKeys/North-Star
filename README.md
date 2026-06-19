@@ -2,7 +2,7 @@
 
 North Star is an experimental orbital data-streaming laboratory. It explores
 resumable, authenticated AI workload transfer across intermittent satellite
-contacts. The project and protocol are both called **North Star**.
+contacts. The lab implements the **Orbital Streaming Protocol Secure (OSPS)**.
 
 The simulator includes:
 
@@ -50,7 +50,7 @@ unacknowledged chunk, and finishes the retained stream.
 
 See [REQUIREMENTS.md](REQUIREMENTS.md) for scope and success criteria and
 [IMPLEMENTATION.md](IMPLEMENTATION.md) for architecture and design. The
-RFC-style implemented protocol description and DTN comparison are in
+RFC-style OSPS protocol description and DTN comparison are in
 [SPEC.md](SPEC.md).
 
 The bundled TLEs represent four LEO spacecraft and are intentionally static for
