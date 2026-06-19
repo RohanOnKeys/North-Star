@@ -1,12 +1,11 @@
-# North Star Protocol Specification
+# Orbital Streaming Protocol Secure (OSPS) Specification
 
 ## Status and scope
 
-This document specifies the behavior implemented by North Star 0.2. North Star
-is an experimental hobby protocol for
-simulating AI workload transfer across intermittent orbital contacts. It is not
-an Internet standard, a CCSDS standard, or a production replacement for the
-Bundle Protocol.
+This document specifies the behavior implemented by OSPS 0.2 as demonstrated in
+the North Star lab. OSPS is an experimental hobby protocol for simulating AI
+workload transfer across intermittent orbital contacts. It is not an Internet
+standard, a CCSDS standard, or a production replacement for the Bundle Protocol.
 
 The key words MUST, SHOULD, and MAY describe current implementation
 requirements, not standards-body consensus.
@@ -114,8 +113,8 @@ receiver concatenates them in sequence order.
 An unacknowledged chunk becomes eligible again after `retry_timeout` simulation
 ticks. Each transmission increments its attempt count. Reaching `max_retries`
 marks the stream failed. ACKed chunks are not retransmitted. This state
-survives contact interruption, providing North Star store-and-forward behavior
-between successive passes.
+survives contact interruption, providing North Star lab store-and-forward
+behavior between successive passes.
 
 ## 7. Relationship to CCSDS/DTN Bundle Protocol
 
@@ -129,10 +128,10 @@ Classic BPv6 custody transfer allowed an intermediate node to accept
 responsibility for retaining and, if necessary, retransmitting a bundle until
 another custodian accepted it, delivery was reported, or the bundle expired.
 BPv7 moved custody-transfer functionality out of the core specification toward
-bundle-in-bundle encapsulation. North Star implements neither form: its ACK only
+bundle-in-bundle encapsulation. OSPS implements neither form: its ACK only
 confirms one adjacent simulated peer received one chunk.
 
-| Area | North Star | CCSDS/DTN BP |
+| Area | OSPS | CCSDS/DTN BP |
 |---|---|---|
 | Role | Direct two-endpoint streaming experiment | Multi-network overlay layer |
 | Data unit | JSON chunk inside a fixed frame | Self-contained bundle made of blocks |
@@ -148,14 +147,14 @@ confirms one adjacent simulated peer received one chunk.
 | Security | Educational PSK cipher and frame HMAC | BPSec block integrity/confidentiality plus secure convergence layers |
 | Congestion | Small reactive chunk window | Convergence-layer rate limiting/congestion control |
 
-North Star diverges to keep protocol mechanics observable in a small Python
-simulation. Its session handshake, strict workload priority, adjacent ACKs, and
-single-hop assumptions are convenient for experimentation but unsuitable for
-production space networking.
+OSPS diverges to keep protocol mechanics observable in the North Star lab's
+small Python simulation. Its session handshake, strict workload priority,
+adjacent ACKs, and single-hop assumptions are convenient for experimentation
+but unsuitable for production space networking.
 
 ## 8. Minimum changes toward BP compatibility
 
-1. Replace North Star messages with BPv7 bundles encoded as CBOR, including primary
+1. Replace OSPS messages with BPv7 bundles encoded as CBOR, including primary
    and payload blocks, endpoint IDs, creation time, and lifetime.
 2. Separate the bundle agent from a convergence-layer adapter; treat the
    current framed link as one possible adapter.
