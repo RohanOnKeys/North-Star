@@ -47,9 +47,9 @@ behavior, not orbital physics or production cryptography.
 - Each contact window defines duration, bandwidth, latency, and optional loss.
 - Messages fit in local storage for the sample scenario.
 - A transfer can resume at the first unacknowledged chunk in a later pass.
-- Encryption is represented by a deterministic XOR stream plus HMAC-SHA256.
-  This demonstrates boundaries and authentication but is not secure enough for
-  real deployment. Production OSPS would use an audited AEAD construction.
+- Frames are sealed with ChaCha20-Poly1305 under an HKDF-derived key. The
+  cipher is audited, but static demo PSKs, no key exchange, and no replay
+  protection mean the system is still not secure enough for real deployment.
 
 ## Functional requirements
 

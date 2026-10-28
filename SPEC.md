@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This document specifies the behavior implemented by OSPS 0.2 as demonstrated in
+This document specifies the behavior implemented by OSPS 0.3 as demonstrated in
 the North Star lab. OSPS is an experimental hobby protocol for simulating AI
 workload transfer across intermittent orbital contacts. It is not an Internet
 standard, a CCSDS standard, or a production replacement for the Bundle Protocol.
@@ -45,7 +45,8 @@ message, chunk, ACK, retry, or reassembly state.
 
 ## 3. Frame format
 
-All serialized frames use network byte order:
+One wire format serves both the simulator and LIVE-SIM; it lives in
+`osps/framing.py`. All fields use network byte order:
 
 ```text
 0                   1                   2                   3
@@ -56,36 +57,56 @@ All serialized frames use network byte order:
 +--------+--------+--------+--------+-----------------------+
 | Sequence (32 bits)               | Payload length (32)    |
 +-----------------------------------------------------------+
-| Payload (variable)                                        |
+| Nonce (12 bytes, random per frame)                        |
 +-----------------------------------------------------------+
-| HMAC-SHA256 tag, truncated to 16 bytes                    |
+| Payload, encrypted or plaintext (length bytes)            |
++-----------------------------------------------------------+
+| Poly1305 tag (16 bytes)                                   |
 +-----------------------------------------------------------+
 ```
 
-Version is `1`. Types are `HELLO=1`, `CHALLENGE=2`, `AUTH=3`, `DATA=4`,
-`ACK=5`, and `ERROR=6`. Only `DATA` and `ACK` cross the simulated link today.
-Flag bit 0 indicates encrypted payload. Other flag bits are not defined.
+Version is `2`. Version 1 frames, which used an HMAC tag and an XOR stream
+cipher, MUST be rejected. Types are `HELLO=1`, `CHALLENGE=2`, `AUTH=3`,
+`DATA=4`, `ACK=5`, and `ERROR=6`. The simulator sends `DATA` and `ACK`; LIVE-SIM
+sends `HELLO`, `DATA`, and `ACK`. Flag bit 0 indicates an encrypted payload.
+Other flag bits are not defined.
 
-The integrity tag is computed over header and transmitted payload. Frames with
-bad magic, unsupported version, inconsistent length, unknown type, or invalid
-tag MUST be rejected.
+Fixed overhead is 48 bytes per frame: a 20-byte header, a 12-byte nonce, and a
+16-byte tag. Frames with bad magic, unsupported version, inconsistent length,
+unknown type, or invalid tag MUST be rejected.
 
 ## 4. Payload protection
 
-After establishment, payload bytes are XORed with a stream generated from
-HMAC-SHA256 keyed by the PSK and parameterized by stream ID, sequence, and a
-counter. The tag authenticates the resulting frame.
+Frames are sealed with ChaCha20-Poly1305 (RFC 8439) from the `cryptography`
+package. The 256-bit frame key is derived from the pre-shared key with
+HKDF-SHA256 (RFC 5869) using info `north-star/osps/v2/frame-key`. The 20-byte
+header is associated data, so it is authenticated but not encrypted. When flag
+bit 0 is clear, the payload travels in plaintext and is authenticated as part
+of the associated data instead.
 
-This construction exists only to exercise encryption and authentication
-boundaries. It has no protocol negotiation, key rotation, forward secrecy, or
-security review and MUST NOT be used outside the simulation.
+Each frame uses a fresh random 96-bit nonce. A nonce MUST NOT repeat under one
+key. Random nonces keep that collision probability negligible below about 2^32
+frames per key.
+
+The cipher is standard, but the system around it is not reviewed. There is no
+key exchange, key rotation, forward secrecy, or replay protection, and the
+bundled PSKs are public demo values. It MUST NOT be relied on outside the lab.
 
 ## 5. Messages, chunks, and scheduling
 
 Each message receives a local 32-bit stream ID and is divided according to the
-configured chunk size. Every DATA payload is compact JSON containing workload
-name, total chunk count, and hex-encoded chunk bytes. Sequence numbers begin at
-zero.
+configured chunk size. Every simulator DATA payload is a 5-byte binary chunk
+header followed by the raw chunk bytes:
+
+```text
++----------------+--------------------------------+-------------------+
+| Workload (u8)  | Total chunks (u32)             | Chunk bytes       |
++----------------+--------------------------------+-------------------+
+```
+
+Workload codes are `CONTROL=0`, `INFERENCE=1`, `RESULT=2`, `TELEMETRY=3`, and
+`MODEL=4`. Sequence numbers begin at zero. LIVE-SIM sends the file's metadata
+once, in the HELLO frame, so its DATA payloads are raw file bytes.
 
 Priority order is:
 
@@ -99,8 +120,12 @@ priority selections, the queue serves an available lower-priority stream to
 limit starvation.
 
 The sender schedules at most its congestion-window number of eligible chunks
-per tick and never exceeds the contact byte budget. The congestion window
-starts at one chunk, grows by one for each newly acknowledged chunk up to 16,
+per tick and never exceeds the contact byte budget. A stream MAY contribute
+several chunks in one tick. Selection continues in priority order until the
+window is full or no eligible chunk fits the remaining budget; a stream with
+nothing eligible is set aside for the rest of the tick so it cannot block
+lower-priority streams. The congestion window starts at one chunk, grows by one
+for each newly acknowledged chunk up to `max_congestion_window` (default 16),
 and halves on simulated loss with a minimum of one.
 
 ## 6. ACK, retry, and reassembly
@@ -134,7 +159,7 @@ confirms one adjacent simulated peer received one chunk.
 | Area | OSPS | CCSDS/DTN BP |
 |---|---|---|
 | Role | Direct two-endpoint streaming experiment | Multi-network overlay layer |
-| Data unit | JSON chunk inside a fixed frame | Self-contained bundle made of blocks |
+| Data unit | Binary chunk inside a fixed frame | Self-contained bundle made of blocks |
 | Addressing | Local peer names and stream IDs | Endpoint IDs and node IDs |
 | Storage | In-memory outbound and reassembly state | Persistent bundle retention model |
 | Forwarding | Ground-to-satellite pair only | Multi-hop forwarding through BP agents |
@@ -144,7 +169,7 @@ confirms one adjacent simulated peer received one chunk.
 | Lifetime | None | Bundle lifetime, age, expiration, deletion |
 | Fragmentation | Fixed source chunking | Protocol fragmentation and ADU reassembly |
 | Extensibility | Version/type fields only | Canonical extension blocks and administrative records |
-| Security | Educational PSK cipher and frame HMAC | BPSec block integrity/confidentiality plus secure convergence layers |
+| Security | ChaCha20-Poly1305 with a static PSK, no key exchange | BPSec block integrity/confidentiality plus secure convergence layers |
 | Congestion | Small reactive chunk window | Convergence-layer rate limiting/congestion control |
 
 OSPS diverges to keep protocol mechanics observable in the North Star lab's
@@ -163,8 +188,8 @@ but unsuitable for production space networking.
 4. Add contact-aware multi-hop routing and forwarding decisions.
 5. Implement status reports, expiration, extension-block processing, and BPv7
    fragmentation semantics.
-6. Replace custom security with BPSec and an audited adjacent-link security
-   mechanism.
+6. Replace PSK-based frame security with BPSec and an audited adjacent-link
+   security mechanism that includes key exchange.
 7. Use an interoperable BP implementation and conformance vectors rather than
    evolving the current wire format into a competing near-BP protocol.
 
@@ -173,5 +198,7 @@ but unsuitable for production space networking.
 - [CCSDS 734.2-B-1, *CCSDS Bundle Protocol Specification*](https://public.ccsds.org/Pubs/734x2b1.pdf).
 - [IETF RFC 9171, *Bundle Protocol Version 7*](https://www.rfc-editor.org/rfc/rfc9171.html).
 - [IETF RFC 9172, *Bundle Protocol Security (BPSec)*](https://www.rfc-editor.org/rfc/rfc9172.html).
+- [IETF RFC 8439, *ChaCha20 and Poly1305 for IETF Protocols*](https://www.rfc-editor.org/rfc/rfc8439.html).
+- [IETF RFC 5869, *HMAC-based Extract-and-Expand Key Derivation Function (HKDF)*](https://www.rfc-editor.org/rfc/rfc5869.html).
 - [IETF RFC 5050, *Bundle Protocol Specification*](https://www.rfc-editor.org/rfc/rfc5050.html)
   (BPv6, historical).
