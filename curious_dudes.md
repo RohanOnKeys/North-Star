@@ -299,7 +299,7 @@ smaller:
 | In-memory state | Persistent bundle retention |
 | Local stream IDs | Standard endpoint identifiers |
 | Custom experimental frames | Standardized bundle format |
-| Educational security | Standard Bundle Protocol Security |
+| Standard cipher, demo keys, no key exchange | Standard Bundle Protocol Security |
 
 The North Star lab is therefore not claiming, "We invented space networking."
 
@@ -315,7 +315,7 @@ That is a much more honest and useful goal.
 The North Star lab currently contains:
 
 - a binary frame encoder and decoder;
-- authenticated, simulated payload encryption;
+- ChaCha20-Poly1305 authenticated payload encryption;
 - a mutual handshake;
 - workload priority queues;
 - message chunking and reassembly;
@@ -485,8 +485,10 @@ The verified hash was:
 bdfddcc84d0cab83ad26c677b6e929532140d4583aef78e1fa944d8889f3a54d
 ```
 
-The compressed live run took roughly 56.6 wall-clock seconds. That gives an
-end-to-end goodput of about 37,068 bytes per second, or 0.297 Mbit/s. This
+The first (v0.2) compressed live run took roughly 56.6 wall-clock seconds,
+an end-to-end goodput of about 37,068 bytes per second, or 0.297 Mbit/s. With
+v0.3 the same transfer took 6 to 16 seconds on Kaggle, because the sender no
+longer stalls when a pass ends and encryption is far faster. This
 number includes compressed no-contact gaps, retries, reconnections, disk
 flushes, acknowledgements, jitter, loss, and hashing. It is **not** a claim
 that a real satellite radio would run at that speed.
@@ -693,7 +695,8 @@ store-and-forward system did its job.
 
 The most meaningful next steps are:
 
-1. Replace the educational crypto with standard, audited security.
+1. Add key exchange, key rotation, and replay protection around the
+   ChaCha20-Poly1305 frames, or carry OSPS over TLS 1.3/QUIC.
 2. Extend the disk-backed live receiver into durable sender queues and
    crash-safe session recovery.
 3. Add multiple satellites, ground stations, and inter-satellite relays.

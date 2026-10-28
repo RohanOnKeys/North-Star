@@ -38,6 +38,8 @@ northstar/          application
   shim.py           pass-driven TCP channel for LIVE-SIM
 benchmarks/
   framing_benchmark.py
+radio_receiver/     audio-jack receiver scaffold (separate from OSPS)
+laser_link/         optical-link scaffold (separate from OSPS)
 data/
   north_star_leo.tle
 scenarios/
@@ -85,8 +87,9 @@ contact has:
 - an optional forced interruption time.
 
 At each tick, the scheduler opens/closes contacts, performs a handshake, assigns
-a byte budget, and asks each endpoint for frames. Frames may be dropped by the
-link. Delivered frames are authenticated, reassembled, and acknowledged.
+a byte budget, and asks each endpoint for frames. An endpoint fills the budget
+in priority order, up to its congestion window, and may take several chunks
+from one stream. Frames may be dropped by the link. Delivered frames are authenticated, reassembled, and acknowledged.
 Unacknowledged chunks age by ticks and become eligible for retransmission.
 
 ### Real pass predictor
