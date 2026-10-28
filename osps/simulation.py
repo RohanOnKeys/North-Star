@@ -9,12 +9,14 @@ from pathlib import Path
 import random
 from typing import Any, Callable
 
-from .framing import FrameType, decode_frame, encode_frame
+from .framing import decode_frame, encode_frame
 from .protocol import Endpoint, SessionState, WorkloadType
 
 
 @dataclass(frozen=True)
 class Contact:
+    """A scheduled contact window between ground and satellite."""
+
     name: str
     start: int
     duration: int
@@ -25,6 +27,7 @@ class Contact:
     interrupt_after: int | None = None
 
     def active(self, simulation_second: int) -> bool:
+        """Whether the link is up at the given simulation second."""
         elapsed = simulation_second - self.start
         if elapsed < 0 or elapsed >= self.duration:
             return False
@@ -32,6 +35,8 @@ class Contact:
 
 
 class Simulator:
+    """Tick-based driver that moves frames between two endpoints."""
+
     def __init__(
         self,
         ground: Endpoint,
@@ -53,6 +58,7 @@ class Simulator:
         self._forced_drops_used: set[tuple[str, int, int]] = set()
 
     def log(self, tick: int, event: str, **details: Any) -> None:
+        """Record an event with queue depths and pass it to the emitter."""
         record = {
             "time": tick * self.tick_seconds,
             "event": event,
@@ -65,6 +71,7 @@ class Simulator:
             self.emit(record)
 
     def _handshake(self, tick: int, contact: Contact) -> None:
+        """Run the mutual PSK handshake at the start of a contact."""
         nonce = self.ground.begin_handshake(tick)
         self.log(tick, "handshake_hello", contact=contact.name, node=self.ground.name)
         self.satellite.state = SessionState.CHALLENGE_RECEIVED
@@ -82,6 +89,7 @@ class Simulator:
             self.log(tick, "authentication_failed", contact=contact.name)
 
     def _should_drop(self, contact: Contact, stream_id: int, sequence: int) -> bool:
+        """Apply forced drops once per contact, then random loss."""
         key = (contact.name, stream_id, sequence)
         if sequence in contact.drop_sequences and key not in self._forced_drops_used:
             self._forced_drops_used.add(key)
@@ -96,6 +104,7 @@ class Simulator:
         receiver: Endpoint,
         budget: int,
     ) -> int:
+        """Send one direction's frames for a tick; return bytes delivered."""
         transferred = 0
         for frame in sender.next_frames(tick, budget):
             encoded = encode_frame(frame, sender.psk)
@@ -147,6 +156,7 @@ class Simulator:
         return transferred
 
     def run(self, until: int | None = None) -> list[dict[str, Any]]:
+        """Run every contact (or up to ``until`` seconds) and return events."""
         if not self.contacts:
             return self.events
         end_second = until if until is not None else max(
@@ -207,6 +217,7 @@ def build_simulator(
     *,
     project_root: Path | None = None,
 ) -> Simulator:
+    """Build endpoints, traffic, and contacts from a scenario config."""
     protocol = config.get("protocol", {})
     psk = config.get("pre_shared_key", "north-star-demo-key").encode()
     common = {
@@ -214,6 +225,7 @@ def build_simulator(
         "chunk_size": int(protocol.get("chunk_size", 256)),
         "retry_timeout": int(protocol.get("retry_timeout", 2)),
         "max_retries": int(protocol.get("max_retries", 5)),
+        "max_congestion_window": int(protocol.get("max_congestion_window", 16)),
     }
     ground = Endpoint("ground", "satellite", **common)
     satellite = Endpoint("satellite", "ground", **common)
@@ -261,4 +273,5 @@ def build_simulator(
 
 
 def json_emitter(record: dict[str, Any]) -> None:
+    """Print an event as one compact JSON line."""
     print(json.dumps(record, separators=(",", ":"), sort_keys=True))
