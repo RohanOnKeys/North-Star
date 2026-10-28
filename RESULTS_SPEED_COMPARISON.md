@@ -4,10 +4,51 @@
 > v0.2. Version 0.3 replaced the XOR cipher with ChaCha20-Poly1305, merged the
 > two frame formats into one (version 2, 48 bytes of fixed overhead), let the
 > simulator send several chunks per stream per tick, and made the shim close
-> contacts promptly. The v0.2 numbers are kept as a historical record; rerun
-> the commands at the end of this file for current figures.
+> contacts promptly. The v0.2 numbers are kept as a historical record; the
+> current figures are in [v0.3 results](#v03-results-october-2026).
 
-## Executive summary
+## v0.3 results (October 2026)
+
+Measured on October 28, 2026 in a Kaggle CPU session: Linux, 4 vCPU Intel Xeon
+@ 2.20 GHz, Python 3.13.15, cryptography 50.0.1, Skyfield 1.53. The suite ran
+twice; where the runs differ, both values are shown.
+
+| Area | v0.2 | v0.3 |
+|---|---|---|
+| Automated tests | 17 passing | 32 passing |
+| Real-orbit 150 KB model | Pass 9, 12.7 h | Pass 1, 210 s after it opens |
+| Simulator wire bytes per 512 B chunk | 1,102 (46.5%) | 565 (90.6%) |
+| Live-path efficiency at 32 KiB | 99.76% | 99.68% |
+| Framing at 32 KiB, encode / decode | 5.3 / 5.2 MiB/s | 1,049 to 1,072 / 1,000 to 1,071 MiB/s |
+| LIVE-SIM contacts used for 2 MiB | 6 | 3 or 4 |
+| LIVE-SIM wall-clock duration | 35.8 s | 6.3 s or 16.4 s |
+| Sender stalls on a closed contact | About 5 s each | None |
+| SHA-256 match | Yes | Yes, same digest |
+
+LIVE-SIM timing varies between runs because pass boundaries can cut a chunk
+in half; it is a test-harness outcome, not a link-rate prediction.
+
+Framing throughput by chunk size (first run, MiB/s):
+
+| Chunk | Wire frame | Encode | Decode | Payload efficiency with ACK |
+|---:|---:|---:|---:|---:|
+| 1 KiB | 1,072 B | 148 | 191 | 90.78% |
+| 4 KiB | 4,144 B | 401 | 406 | 97.52% |
+| 16 KiB | 16,432 B | 896 | 930 | 99.37% |
+| 32 KiB | 32,816 B | 1,078 | 1,071 | 99.68% |
+| 128 KiB | 131,120 B | 1,274 | 1,120 | 99.92% |
+
+At 32 KiB, decode now caps a single core at roughly 8.4 to 9.0 Gbit/s instead
+of about 44 Mbit/s. Small chunks are dominated by per-frame Python overhead
+rather than the cipher.
+
+The new shim regression test was also run against the old close-only
+behavior on Linux: it blocked for 5.0 s and timed out, reproducing the v0.2
+stall, and it passes with the fix.
+
+Reproduce with the commands at the end of this file.
+
+## Executive summary (v0.2, June 2026)
 
 The North Star lab demonstrated reliable file delivery across repeated,
 Skyfield-predicted orbital contact windows using three separate programs and
@@ -18,16 +59,16 @@ The strongest result is **continuity**, not universal speed superiority:
 - a 2 MiB payload survived repeated complete connection loss;
 - the receiver resumed from persisted chunk state;
 - sender and receiver SHA-256 hashes matched;
-- current 32 KiB chunks provide about **99.76% application framing
-  efficiency**; and
-- the educational pure-Python encryption reaches only a few MiB/s, so it must
-  be replaced before high-rate RF or optical use.
+- 32 KiB chunks provided about **99.76% application framing efficiency**
+  (99.68% in v0.3, which adds a 12-byte nonce); and
+- the educational pure-Python encryption reached only a few MiB/s, so it had
+  to be replaced before high-rate RF or optical use (done in v0.3).
 
 OSPS has not yet been benchmarked head-to-head against real HTTP/3,
 QUIC, or BPv7 implementations under identical conditions. Therefore, no honest
 claim like "X% faster than HTTP/3" can be made yet.
 
-## What was tested
+## What was tested (v0.2)
 
 On June 19, 2026, LIVE-SIM ran three independent processes:
 
@@ -43,7 +84,7 @@ The orbital clock used `TIME_SCALE=1200`. This compresses a day-long schedule
 into roughly a minute while scaling bandwidth to preserve modeled capacity. It
 does not make the result a measurement of real radio throughput.
 
-## Achieved outcomes
+## Achieved outcomes (v0.2)
 
 | Outcome | Result |
 |---|---|
@@ -64,9 +105,9 @@ Wall-clock goodput includes compressed no-contact periods, retries,
 reconnections, acknowledgements, jitter, loss, disk flushes, and hashing. It
 is a test-harness outcome, not a spacecraft link-rate prediction.
 
-## Wire efficiency
+## Wire efficiency (v0.2)
 
-For each current 32 KiB DATA chunk:
+For each v0.2 32 KiB DATA chunk:
 
 - OSPS frame header: 20 bytes;
 - authentication tag: 16 bytes;
@@ -92,10 +133,13 @@ That is 80 bytes of application-layer overhead per acknowledged 32 KiB chunk,
 or about 0.244%. Metadata, reconnects, TCP/IP headers, retransmissions, and
 radio error-correction overhead are not included.
 
+v0.3 adds a 12-byte nonce to every frame, so a DATA frame and its ACK each
+carry 52 bytes including the length field: 32,768 / 32,872 = 99.684%.
+
 Smaller chunks reduce wasted retransmission after interruption but increase
 percentage overhead. Larger chunks do the reverse.
 
-## Local framing speed
+## Local framing speed (v0.2)
 
 Run:
 
@@ -130,7 +174,7 @@ ChaCha20-Poly1305.
 | Security today | Audited AEAD, static PSK, no key exchange | Mature TLS | TLS 1.3 integrated | BPSec and secure convergence layers |
 | Congestion control | Simplified | Mature TCP | Mature QUIC | Usually convergence-layer dependent |
 | Interoperability | None | Very high | High | Space/DTN standard |
-| Current app framing efficiency | 99.76% | Configuration-dependent | Configuration-dependent | Bundle-size dependent |
+| App framing efficiency at 32 KiB | 99.68% | Configuration-dependent | Configuration-dependent | Bundle-size dependent |
 
 ### Compared with HTTP over TCP
 
@@ -157,7 +201,7 @@ connection. An application can build that over HTTP/3; the North Star lab
 demonstrates it directly with OSPS.
 
 There is currently **no measured speed win over HTTP/3**. A mature QUIC stack
-would likely beat the current Python codec on a continuous link.
+would likely beat OSPS's stop-and-wait chunk exchange on a continuous link.
 
 ### Compared with BPv7 / CCSDS Bundle Protocol
 
@@ -179,7 +223,8 @@ claim to replace it.
    ends.
 2. **Scheduling efficiency:** urgent inference/control data can precede large
    model data.
-3. **Framing efficiency:** approximately 99.76% payload at 32 KiB chunks.
+3. **Framing efficiency:** approximately 99.68% payload at 32 KiB chunks
+   (99.76% in v0.2).
 4. **Operational efficiency:** a complete connection failure does not discard
    already persisted progress.
 

@@ -27,7 +27,8 @@ behavior, not orbital physics or production cryptography.
 
 - Accurate orbit, RF propagation, antenna, or weather simulation.
 - A production-ready cryptographic implementation.
-- Kernel networking, sockets, an HTTP replacement gateway, or standards work.
+- Kernel networking, an HTTP replacement gateway, or standards work. (LIVE-SIM
+  uses ordinary user-space TCP sockets.)
 - Multi-hop routing, inter-satellite links, or distributed consensus.
 - Efficient transfer of real model files.
 
@@ -87,6 +88,7 @@ behavior, not orbital physics or production cryptography.
 
 - Each session maintains a congestion window measured in chunks.
 - Successful ACK rounds increase the window additively.
+- A stream may send several chunks per tick within the window.
 - Loss or timeout reduces the window multiplicatively.
 - The contact's byte budget is always an upper bound.
 
@@ -100,12 +102,14 @@ behavior, not orbital physics or production cryptography.
 ### Authentication and encryption
 
 - A PSK authenticates the handshake and frames.
-- Payloads are encrypted in the simulator after session establishment.
+- Payloads are encrypted with ChaCha20-Poly1305 in both the simulator and
+  LIVE-SIM; frame headers are authenticated.
 - Authentication failure closes the session and is logged.
 
 ## Non-functional requirements
 
-- Python 3.11+ with Skyfield as the only direct third-party dependency.
+- Python 3.11+ with Skyfield and cryptography as the only direct third-party
+  dependencies.
 - Deterministic scenarios when supplied with a random seed.
 - Clear module boundaries between framing, queues, nodes, and simulation.
 - Unit tests must not depend on wall-clock sleeps or external services.
