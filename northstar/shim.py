@@ -14,6 +14,20 @@ from osps.orbital import predict_from_config
 from .live import log, receive_packet, send_packet
 
 
+def hang_up(connection: socket.socket) -> None:
+    """Close a socket so the peer sees FIN now.
+
+    ``close()`` alone does not release a socket that another thread is blocked
+    reading, so the peer would only notice when its own timeout expired.
+    ``shutdown()`` wakes the blocked reader and sends FIN immediately.
+    """
+    try:
+        connection.shutdown(socket.SHUT_RDWR)
+    except OSError:
+        pass
+    connection.close()
+
+
 def pipe_packets(
     source: socket.socket,
     destination: socket.socket,
@@ -81,8 +95,8 @@ def bridge(
         thread.start()
     while time.monotonic() < deadline and all(thread.is_alive() for thread in threads):
         time.sleep(0.01)
-    satellite.close()
-    ground.close()
+    hang_up(satellite)
+    hang_up(ground)
     for thread in threads:
         thread.join(timeout=0.2)
     if errors:
@@ -142,7 +156,7 @@ def run_shim(
                     continue
                 origin = time.monotonic() + 1.0
                 log("schedule_armed", peer=str(peer), first_contact_delay_seconds=1)
-                satellite.close()
+                hang_up(satellite)
                 continue
             now = time.monotonic() - origin
             contact = schedule[index]
@@ -158,14 +172,16 @@ def run_shim(
                 if wall_now - last_refusal_log >= 1.0:
                     log("connection_refused_no_line_of_sight", peer=str(peer))
                     last_refusal_log = wall_now
-                satellite.close()
+                hang_up(satellite)
                 continue
             try:
                 ground = socket.create_connection((ground_host, ground_port), timeout=2)
             except OSError as exc:
                 log("ground_unavailable", reason=str(exc))
-                satellite.close()
+                hang_up(satellite)
                 continue
+            # The contact deadline, not a socket timeout, ends the bridge.
+            ground.settimeout(None)
             deadline = origin + contact["close"]
             log(
                 "contact_opened",

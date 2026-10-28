@@ -78,6 +78,12 @@ def build_parser() -> argparse.ArgumentParser:
     satellite.add_argument("--chunk-size", type=int, default=32 * 1024)
     satellite.add_argument("--retry-delay", type=float, default=0.25)
     satellite.add_argument(
+        "--ack-timeout",
+        type=float,
+        default=5.0,
+        help="seconds to wait for a reply on an open link",
+    )
+    satellite.add_argument(
         "--generate-bytes",
         type=int,
         help="create a deterministic dummy model file before sending",
@@ -120,6 +126,7 @@ def main(argv: list[str] | None = None) -> int:
             args.key.encode(),
             chunk_size=args.chunk_size,
             retry_delay=args.retry_delay,
+            ack_timeout=args.ack_timeout,
         )
         return 0
 
