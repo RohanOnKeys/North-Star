@@ -13,7 +13,7 @@ import struct
 import time
 from typing import Any
 
-from .framing import Frame, FrameType, decode_frame, encode_frame
+from osps.framing import Frame, FrameType, decode_frame, encode_frame
 
 PACKET_LENGTH = struct.Struct("!I")
 MAX_PACKET = 16 * 1024 * 1024

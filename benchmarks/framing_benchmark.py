@@ -9,7 +9,7 @@ import argparse
 import json
 import time
 
-from northstar.framing import Frame, FrameType, decode_frame, encode_frame
+from osps.framing import Frame, FrameType, decode_frame, encode_frame
 
 
 def main() -> int:

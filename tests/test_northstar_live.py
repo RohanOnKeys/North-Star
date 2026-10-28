@@ -1,7 +1,7 @@
 import socket
 import unittest
 
-from northstar.framing import Frame, FrameError, FrameType, decode_frame, encode_frame
+from osps.framing import Frame, FrameError, FrameType, decode_frame, encode_frame
 from northstar.live import receive_packet, send_packet
 
 
