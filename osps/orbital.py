@@ -7,12 +7,19 @@ from datetime import datetime, timedelta, timezone
 import math
 from pathlib import Path
 from typing import Any
+import warnings
 
 from skyfield.api import EarthSatellite, load, wgs84
+
+# Skyfield 1.53-1.55 assign ``ndarray.dtype`` in searchlib, which NumPy 2.5
+# deprecates. Remove this filter once a Skyfield release stops doing that.
+_SKYFIELD_DTYPE_WARNING = "Setting the dtype on a NumPy array has been deprecated"
 
 
 @dataclass(frozen=True)
 class PredictedPass:
+    """One above-threshold pass with its modeled link bandwidth."""
+
     satellite: str
     start: datetime
     end: datetime
@@ -21,9 +28,11 @@ class PredictedPass:
 
     @property
     def duration_seconds(self) -> int:
+        """Pass length in whole seconds, at least one."""
         return max(1, math.ceil((self.end - self.start).total_seconds()))
 
     def as_dict(self, simulation_start: datetime) -> dict[str, Any]:
+        """Return the pass as a simulator contact relative to ``simulation_start``."""
         return {
             "name": f"{self.satellite}:{self.start.isoformat()}",
             "satellite": self.satellite,
@@ -39,6 +48,7 @@ class PredictedPass:
 
 
 def parse_utc(value: str) -> datetime:
+    """Parse an ISO 8601 timestamp, treating naive values as UTC."""
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
@@ -94,9 +104,16 @@ def predict_passes(
     passes: list[PredictedPass] = []
 
     for satellite in satellites:
-        times, events = satellite.find_events(
-            observer, t0, t1, altitude_degrees=elevation_threshold_degrees
-        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=_SKYFIELD_DTYPE_WARNING,
+                category=DeprecationWarning,
+                module=r"skyfield\.",
+            )
+            times, events = satellite.find_events(
+                observer, t0, t1, altitude_degrees=elevation_threshold_degrees
+            )
         rise = None
         culmination = None
         for time, event in zip(times, events):
@@ -140,6 +157,7 @@ def predict_passes(
 def predict_from_config(
     config: dict[str, Any], project_root: Path
 ) -> tuple[datetime, list[PredictedPass]]:
+    """Predict passes for a scenario's ``orbital`` block."""
     orbital = config["orbital"]
     station = orbital["ground_station"]
     start = parse_utc(orbital["start_utc"])

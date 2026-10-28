@@ -1,3 +1,5 @@
+"""Tests for optical window derivation."""
+
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 import unittest
@@ -6,6 +8,8 @@ from laser_link.profile import derive_optical_windows
 
 
 class LaserLinkTests(unittest.TestCase):
+    """Acquisition delay and cloud blocking."""
+
     def test_cloud_block_and_acquisition_are_explicit(self):
         start = datetime(2026, 1, 1, tzinfo=timezone.utc)
         passes = [

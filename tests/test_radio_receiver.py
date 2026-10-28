@@ -1,3 +1,5 @@
+"""Tests for the radio receiver scaffold."""
+
 from pathlib import Path
 import unittest
 
@@ -6,6 +8,8 @@ from radio_receiver.input_sources import WavInputSource, build_input_source
 
 
 class RadioReceiverTests(unittest.TestCase):
+    """Decoder and input source behavior."""
+
     def test_synthetic_fixture_decodes(self):
         fixture = (
             Path(__file__).resolve().parent.parent

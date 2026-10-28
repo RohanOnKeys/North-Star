@@ -11,9 +11,12 @@ from .base import DecodeResult
 
 
 class SyntheticToneDecoder:
+    """Recognize the 1000, 1500, and 2000 Hz fixture tones."""
+
     mode = "SYNTHETIC_TONE"
 
     def decode(self, path: Path) -> DecodeResult:
+        """Estimate the tone frequency by counting zero crossings."""
         with wave.open(str(path), "rb") as handle:
             if handle.getnchannels() != 1 or handle.getsampwidth() != 2:
                 return DecodeResult(

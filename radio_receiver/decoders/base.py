@@ -9,6 +9,8 @@ from typing import Protocol
 
 @dataclass(frozen=True)
 class DecodeResult:
+    """Outcome of decoding one capture."""
+
     success: bool
     mode: str
     message: str
@@ -16,7 +18,10 @@ class DecodeResult:
 
 
 class Decoder(Protocol):
+    """Interface every radio mode decoder implements."""
+
     mode: str
 
     def decode(self, path: Path) -> DecodeResult:
+        """Decode the WAV capture at ``path``."""
         ...

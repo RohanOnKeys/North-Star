@@ -9,6 +9,8 @@ from typing import Iterable
 
 @dataclass(frozen=True)
 class OpticalWindow:
+    """A usable optical contact after acquisition and weather."""
+
     satellite: str
     start: datetime
     end: datetime

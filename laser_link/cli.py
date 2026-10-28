@@ -17,6 +17,7 @@ from .profile import derive_optical_windows
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the laser-link receive, send, or profile subcommand."""
     parser = argparse.ArgumentParser(description="North Star laser-link scaffold")
     commands = parser.add_subparsers(dest="command", required=True)
     receiver = commands.add_parser("receive")

@@ -1,3 +1,5 @@
+"""Tests for Skyfield pass prediction."""
+
 from collections import defaultdict
 from datetime import timedelta
 from pathlib import Path
@@ -13,6 +15,8 @@ SCENARIO = ROOT / "scenarios" / "real_orbits.json"
 
 
 class OrbitalTests(unittest.TestCase):
+    """Predicted pass windows from the bundled TLEs."""
+
     @classmethod
     def setUpClass(cls):
         cls.config = load_config(SCENARIO)

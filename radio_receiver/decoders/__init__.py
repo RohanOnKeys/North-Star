@@ -6,6 +6,7 @@ from .stubs import StubDecoder
 
 
 def decoder_for(mode: str):
+    """Return the decoder for a mode name; unknown modes get a stub."""
     normalized = mode.upper()
     if normalized == "SYNTHETIC_TONE":
         return SyntheticToneDecoder()
