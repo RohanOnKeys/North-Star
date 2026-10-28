@@ -1,1 +1,2 @@
+cryptography>=42.0
 skyfield==1.53

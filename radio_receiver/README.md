@@ -10,7 +10,7 @@ synthetic tone fixtures have a working decoder.
 
 ## No-hardware test
 
-```powershell
+```bash
 python -m radio_receiver.cli generate-fixtures
 python -m radio_receiver.cli decode radio_receiver/fixtures/synthetic_1000hz.wav --mode SYNTHETIC_TONE
 python -m radio_receiver.cli decode radio_receiver/fixtures/synthetic_1000hz.wav --mode AFSK1200
@@ -18,7 +18,7 @@ python -m radio_receiver.cli decode radio_receiver/fixtures/synthetic_1000hz.wav
 
 The same flow through the selectable input interface:
 
-```powershell
+```bash
 python -m radio_receiver.cli receive --source wav --input radio_receiver/fixtures/synthetic_1000hz.wav --mode SYNTHETIC_TONE
 ```
 
@@ -27,7 +27,7 @@ AFSK command exits with a clear unimplemented result and never fakes success.
 
 ## Future sound-card capture
 
-```powershell
+```bash
 python -m pip install -r requirements-radio.txt
 python -m radio_receiver.cli list-devices
 python -m radio_receiver.cli record capture.wav --seconds 15 --device 0

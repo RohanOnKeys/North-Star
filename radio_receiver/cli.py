@@ -13,6 +13,7 @@ from .input_sources import build_input_source
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run a radio receiver subcommand and return a process exit code."""
     parser = argparse.ArgumentParser(description="North Star radio receiver scaffold")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list-devices")

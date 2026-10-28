@@ -1,9 +1,13 @@
+"""Tests for QoS priority scheduling."""
+
 import unittest
 
 from osps.protocol import Endpoint, SessionState, WorkloadType
 
 
 class PriorityTests(unittest.TestCase):
+    """Priority ordering between workloads."""
+
     def test_realtime_precedes_bulk(self):
         endpoint = Endpoint("ground", "satellite", b"key", chunk_size=32)
         bulk = endpoint.enqueue(WorkloadType.MODEL, b"m" * 64)

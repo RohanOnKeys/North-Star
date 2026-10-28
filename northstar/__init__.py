@@ -1,3 +1,5 @@
-"""North Star orbital data streaming experiments."""
+"""North Star orbital data streaming application built on the OSPS library."""
 
-__version__ = "0.2.0"
+from osps import __version__
+
+__all__ = ["__version__"]

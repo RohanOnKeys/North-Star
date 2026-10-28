@@ -9,10 +9,11 @@ import argparse
 import json
 import time
 
-from northstar.framing import Frame, FrameType, decode_frame, encode_frame
+from osps.framing import Frame, FrameType, decode_frame, encode_frame
 
 
 def main() -> int:
+    """Time encode and decode of DATA frames and print MiB/s as JSON."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--chunk-size", type=int, default=32 * 1024)
     parser.add_argument("--iterations", type=int, default=2000)

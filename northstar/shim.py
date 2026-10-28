@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 import random
 import socket
@@ -10,8 +9,23 @@ import threading
 import time
 from pathlib import Path
 
-from northstar.live import log, receive_packet, send_packet
-from northstar.orbital import predict_from_config
+from osps.orbital import predict_from_config
+
+from .live import log, receive_packet, send_packet
+
+
+def hang_up(connection: socket.socket) -> None:
+    """Close a socket so the peer sees FIN now.
+
+    ``close()`` alone does not release a socket that another thread is blocked
+    reading, so the peer would only notice when its own timeout expired.
+    ``shutdown()`` wakes the blocked reader and sends FIN immediately.
+    """
+    try:
+        connection.shutdown(socket.SHUT_RDWR)
+    except OSError:
+        pass
+    connection.close()
 
 
 def pipe_packets(
@@ -25,6 +39,7 @@ def pipe_packets(
     randomizer: random.Random,
     label: str,
 ) -> None:
+    """Forward packets one way, applying loss, shaping, and the deadline."""
     while time.monotonic() < deadline:
         payload = receive_packet(source)
         if randomizer.random() < loss_rate:
@@ -49,9 +64,11 @@ def bridge(
     jitter_ms: float,
     randomizer: random.Random,
 ) -> None:
+    """Relay both directions until the deadline or either side fails."""
     errors: list[Exception] = []
 
     def run(source, destination, label):
+        """Pipe one direction and record the error that ended it."""
         try:
             pipe_packets(
                 source,
@@ -78,39 +95,30 @@ def bridge(
         thread.start()
     while time.monotonic() < deadline and all(thread.is_alive() for thread in threads):
         time.sleep(0.01)
-    satellite.close()
-    ground.close()
+    hang_up(satellite)
+    hang_up(ground)
     for thread in threads:
         thread.join(timeout=0.2)
     if errors:
         log("channel_bridge_ended", reason=str(errors[0]))
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="North Star orbital channel shim")
-    parser.add_argument(
-        "--scenario", type=Path, default=Path("scenarios/live_real_orbits.json")
-    )
-    parser.add_argument("--listen-host", default="127.0.0.1")
-    parser.add_argument("--listen-port", type=int, default=9101)
-    parser.add_argument("--ground-host", default="127.0.0.1")
-    parser.add_argument("--ground-port", type=int, default=9100)
-    parser.add_argument(
-        "--time-scale",
-        type=float,
-        default=None,
-        help="simulation seconds per wall-clock second; defaults to TIME_SCALE or 1",
-    )
-    args = parser.parse_args()
-    config = json.loads(args.scenario.read_text(encoding="utf-8"))
-    start, predicted = predict_from_config(config, Path.cwd())
+def run_shim(
+    scenario: Path,
+    project_root: Path,
+    *,
+    listen_host: str = "127.0.0.1",
+    listen_port: int = 9101,
+    ground_host: str = "127.0.0.1",
+    ground_port: int = 9100,
+    time_scale: float = 1.0,
+) -> int:
+    """Serve the predicted pass schedule between sender and ground station."""
+    config = json.loads(scenario.read_text(encoding="utf-8"))
+    start, predicted = predict_from_config(config, project_root)
     if not predicted:
         raise SystemExit("No predicted contacts in scenario")
-    scale = args.time_scale
-    if scale is None:
-        import os
-
-        scale = float(os.environ.get("TIME_SCALE", "1"))
+    scale = time_scale
     first_start = predicted[0].start
     schedule = [
         {
@@ -129,7 +137,7 @@ def main() -> int:
     last_refusal_log = 0.0
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.bind((args.listen_host, args.listen_port))
+        server.bind((listen_host, listen_port))
         server.listen()
         server.settimeout(0.1)
         log(
@@ -148,7 +156,7 @@ def main() -> int:
                     continue
                 origin = time.monotonic() + 1.0
                 log("schedule_armed", peer=str(peer), first_contact_delay_seconds=1)
-                satellite.close()
+                hang_up(satellite)
                 continue
             now = time.monotonic() - origin
             contact = schedule[index]
@@ -164,16 +172,16 @@ def main() -> int:
                 if wall_now - last_refusal_log >= 1.0:
                     log("connection_refused_no_line_of_sight", peer=str(peer))
                     last_refusal_log = wall_now
-                satellite.close()
+                hang_up(satellite)
                 continue
             try:
-                ground = socket.create_connection(
-                    (args.ground_host, args.ground_port), timeout=2
-                )
+                ground = socket.create_connection((ground_host, ground_port), timeout=2)
             except OSError as exc:
                 log("ground_unavailable", reason=str(exc))
-                satellite.close()
+                hang_up(satellite)
                 continue
+            # The contact deadline, not a socket timeout, ends the bridge.
+            ground.settimeout(None)
             deadline = origin + contact["close"]
             log(
                 "contact_opened",
@@ -194,7 +202,3 @@ def main() -> int:
             log("contact_closed", satellite=contact["name"])
         log("schedule_exhausted")
     return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

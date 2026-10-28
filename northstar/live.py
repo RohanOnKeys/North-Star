@@ -13,13 +13,14 @@ import struct
 import time
 from typing import Any
 
-from .framing import Frame, FrameType, decode_frame, encode_frame
+from osps.framing import Frame, FrameType, decode_frame, encode_frame
 
 PACKET_LENGTH = struct.Struct("!I")
 MAX_PACKET = 16 * 1024 * 1024
 
 
 def log(event: str, **details: Any) -> None:
+    """Print one JSON log line stamped with UTC wall-clock time."""
     record = {
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "event": event,
@@ -29,6 +30,7 @@ def log(event: str, **details: Any) -> None:
 
 
 def receive_exact(connection: socket.socket, size: int) -> bytes:
+    """Read exactly ``size`` bytes or raise ``ConnectionError`` on EOF."""
     output = bytearray()
     while len(output) < size:
         block = connection.recv(size - len(output))
@@ -39,10 +41,12 @@ def receive_exact(connection: socket.socket, size: int) -> bytes:
 
 
 def send_packet(connection: socket.socket, payload: bytes) -> None:
+    """Send one length-prefixed packet."""
     connection.sendall(PACKET_LENGTH.pack(len(payload)) + payload)
 
 
 def receive_packet(connection: socket.socket) -> bytes:
+    """Receive one length-prefixed packet."""
     size = PACKET_LENGTH.unpack(receive_exact(connection, PACKET_LENGTH.size))[0]
     if size > MAX_PACKET:
         raise ValueError(f"packet exceeds {MAX_PACKET} bytes")
@@ -50,6 +54,7 @@ def receive_packet(connection: socket.socket) -> bytes:
 
 
 def file_sha256(path: Path) -> str:
+    """Return the hex SHA-256 digest of a file."""
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
@@ -58,6 +63,7 @@ def file_sha256(path: Path) -> str:
 
 
 def generate_payload(path: Path, size: int) -> None:
+    """Write a deterministic dummy model file of ``size`` bytes."""
     pattern = b"NORTH-STAR-MODEL-WEIGHTS-"
     remaining = size
     with path.open("wb") as handle:
@@ -69,6 +75,8 @@ def generate_payload(path: Path, size: int) -> None:
 
 @dataclass
 class TransferMetadata:
+    """File description sent in the HELLO frame."""
+
     filename: str
     size: int
     chunk_size: int
@@ -76,10 +84,12 @@ class TransferMetadata:
     sha256: str
 
     def encode(self) -> bytes:
+        """Serialize as compact JSON."""
         return json.dumps(self.__dict__, separators=(",", ":")).encode()
 
     @classmethod
     def decode(cls, payload: bytes) -> "TransferMetadata":
+        """Parse metadata produced by ``encode``."""
         return cls(**json.loads(payload.decode()))
 
 
@@ -91,7 +101,13 @@ def send_file(
     *,
     chunk_size: int = 32 * 1024,
     retry_delay: float = 0.25,
+    ack_timeout: float = 5.0,
 ) -> None:
+    """Send a file through intermittent links, resuming after each outage.
+
+    ``ack_timeout`` bounds how long the sender waits for a reply on a link
+    that is still open. A link the channel closes is detected at once.
+    """
     size = source.stat().st_size
     total = (size + chunk_size - 1) // chunk_size
     metadata = TransferMetadata(
@@ -109,7 +125,7 @@ def send_file(
     while next_sequence < total:
         try:
             with socket.create_connection((host, port), timeout=2) as connection:
-                connection.settimeout(5)
+                connection.settimeout(ack_timeout)
                 send_packet(
                     connection,
                     encode_frame(Frame(FrameType.HELLO, 1, 0, metadata.encode()), key),
@@ -149,12 +165,15 @@ def send_file(
 
 
 class FileReceiver:
+    """Ground-side receiver that persists progress for resumption."""
+
     def __init__(self, output_dir: Path, key: bytes):
         self.output_dir = output_dir
         self.key = key
         output_dir.mkdir(parents=True, exist_ok=True)
 
     def _paths(self, metadata: TransferMetadata) -> tuple[Path, Path, Path]:
+        """Return the final, partial, and state file paths for a transfer."""
         safe_name = Path(metadata.filename).name
         final = self.output_dir / safe_name
         partial = self.output_dir / f"{safe_name}.part"
@@ -162,6 +181,7 @@ class FileReceiver:
         return final, partial, state
 
     def _load_next(self, metadata: TransferMetadata, partial: Path, state: Path) -> int:
+        """Return the persisted resume sequence, discarding stale state."""
         if not partial.exists() or not state.exists():
             return 0
         saved = json.loads(state.read_text(encoding="utf-8"))
@@ -172,6 +192,7 @@ class FileReceiver:
         return int(saved.get("next_sequence", 0))
 
     def handle(self, connection: socket.socket, peer: tuple[str, int]) -> None:
+        """Serve one connection: HELLO, resume point, then DATA until done."""
         hello = decode_frame(receive_packet(connection), self.key)
         if hello.frame_type != FrameType.HELLO:
             raise ValueError("first frame must be HELLO")
@@ -239,6 +260,7 @@ class FileReceiver:
 
 
 def serve_receiver(host: str, port: int, output_dir: Path, key: bytes) -> None:
+    """Accept connections forever, handling one transfer session at a time."""
     receiver = FileReceiver(output_dir, key)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

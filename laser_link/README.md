@@ -16,13 +16,13 @@ tracking mount, beacon, photodetector, modem, or safety interlock.
 
 Inspect optical windows:
 
-```powershell
+```bash
 python -m laser_link.cli profile --blocked-pass 1
 ```
 
 Test the software terminal on localhost:
 
-```powershell
+```bash
 # Terminal 1
 python -m laser_link.cli receive
 

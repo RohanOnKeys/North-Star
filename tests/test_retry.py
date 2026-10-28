@@ -1,3 +1,5 @@
+"""Tests for retry, resume, and handshake behavior."""
+
 import json
 import unittest
 
@@ -6,6 +8,8 @@ from osps.simulation import build_simulator
 
 
 class RetryTests(unittest.TestCase):
+    """Retries and resumption across contacts."""
+
     def test_unacknowledged_chunk_is_retried(self):
         endpoint = Endpoint(
             "ground", "satellite", b"key", chunk_size=32, retry_timeout=2

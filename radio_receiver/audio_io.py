@@ -7,6 +7,7 @@ import wave
 
 
 def _sounddevice():
+    """Import the optional sounddevice package or explain how to install it."""
     try:
         import sounddevice
     except ImportError as exc:
@@ -18,6 +19,7 @@ def _sounddevice():
 
 
 def list_devices() -> list[dict]:
+    """Return the audio devices visible to sounddevice."""
     sounddevice = _sounddevice()
     output = []
     for index, device in enumerate(sounddevice.query_devices()):
@@ -39,6 +41,7 @@ def record_wav(
     sample_rate: int = 48_000,
     device: int | None = None,
 ) -> None:
+    """Record mono 16-bit audio from an input device into a WAV file."""
     sounddevice = _sounddevice()
     frames = sounddevice.rec(
         int(seconds * sample_rate),

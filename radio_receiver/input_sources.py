@@ -11,18 +11,24 @@ from .audio_io import record_wav
 
 
 class InputSource(Protocol):
+    """Something that can produce a WAV file to decode."""
+
     name: str
 
     def acquire(self) -> Path:
+        """Return the path of a WAV file ready to decode."""
         ...
 
 
 @dataclass
 class WavInputSource:
+    """Use an existing WAV file; no hardware involved."""
+
     path: Path
     name: str = "wav"
 
     def acquire(self) -> Path:
+        """Return the path of a WAV file ready to decode."""
         if not self.path.is_file():
             raise FileNotFoundError(self.path)
         return self.path
@@ -30,6 +36,8 @@ class WavInputSource:
 
 @dataclass
 class SoundDeviceInputSource:
+    """Record from an audio input device."""
+
     seconds: float
     device: int | None = None
     sample_rate: int = 48_000
@@ -37,6 +45,7 @@ class SoundDeviceInputSource:
     name: str = "hardware"
 
     def acquire(self) -> Path:
+        """Return the path of a WAV file ready to decode."""
         destination = self.output
         if destination is None:
             temporary = tempfile.NamedTemporaryFile(
@@ -62,6 +71,7 @@ def build_input_source(
     sample_rate: int = 48_000,
     output: Path | None = None,
 ) -> InputSource:
+    """Create the input source named by ``source``."""
     if source == "wav":
         if input_path is None:
             raise ValueError("--input is required when --source wav")

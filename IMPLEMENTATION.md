@@ -25,29 +25,34 @@ crossing the simulated link and decoded at the peer.
 ## Repository layout
 
 ```text
-northstar/
-  framing.py        OSPS live wire framing
-  live.py           real socket transfer and disk-backed resumption
-  orbital.py        public orbital prediction interface
-  cli.py            simulation CLI
-simulation internals are retained behind the public `northstar` package
-  __init__.py       public package metadata
-  __main__.py       compatibility simulation entry point
-  cli.py            CLI parsing and scenario loading
-  framing.py        frame codec, integrity, simulated encryption
+osps/               protocol library
+  __init__.py       single version source
+  framing.py        the one wire format: v2 frames, ChaCha20-Poly1305
   protocol.py       messages, QoS queue, endpoint and retry state
   orbital.py        offline TLE loading and Skyfield pass prediction
   simulation.py     contacts, scheduler and structured event log
+northstar/          application
+  __main__.py       python -m northstar entry point
+  cli.py            run, passes, ground, shim, and satellite subcommands
+  live.py           real socket transfer and disk-backed resumption
+  shim.py           pass-driven TCP channel for LIVE-SIM
+benchmarks/
+  framing_benchmark.py
 data/
   north_star_leo.tle
 scenarios/
   interrupted_pass.json
+  live_real_orbits.json
   real_orbits.json
 tests/
   test_framing.py
+  test_laser_link.py
+  test_northstar_live.py
   test_orbital.py
   test_priority.py
+  test_radio_receiver.py
   test_retry.py
+  test_throughput.py
 ```
 
 ## Protocol state machine
@@ -115,7 +120,7 @@ To swap TLE sets:
 The live path consists of three independent operating-system processes:
 
 ```text
-satellite_node.py  <-- TCP -->  channel_shim.py  <-- TCP -->  ground_station.py
+northstar satellite  <-- TCP -->  northstar shim  <-- TCP -->  northstar ground
        |                           |                           |
  source file                 Skyfield schedule          partial file + state
  retry/resume                loss/jitter/rate cap       SHA-256 verification
@@ -125,7 +130,9 @@ The sender never opens a direct connection to the receiver. The shim maps
 Skyfield passes onto monotonic wall-clock time. Outside line-of-sight windows,
 connections are immediately refused. During a pass, complete length-prefixed
 OSPS frames are forwarded with an elevation-derived byte rate, seeded
-packet loss, and jitter. At the pass deadline both sockets close.
+packet loss, and jitter. At the pass deadline the shim shuts both sockets
+down, which sends FIN at once even while a relay thread is blocked reading, so
+the sender reconnects for the next pass without waiting for a timeout.
 
 The sender reconnects and begins with a metadata frame. The receiver reports
 the first missing sequence number from its `.part` file and `.state.json`.
@@ -147,7 +154,7 @@ transfer capacity while shortening its wall-clock duration.
 
 ## CLI
 
-```powershell
+```bash
 python -m pip install -r requirements.txt
 python -m northstar run scenarios/interrupted_pass.json
 python -m northstar run scenarios/interrupted_pass.json --pretty
@@ -155,7 +162,12 @@ python -m northstar passes scenarios/real_orbits.json --pretty
 python -m northstar run scenarios/real_orbits.json --pretty
 python -m unittest discover -s tests -v
 python -m benchmarks.framing_benchmark --iterations 2000
+python -m northstar ground --output-dir received
+python -m northstar shim --time-scale 1200
+python -m northstar satellite model_weights.bin --generate-bytes 2097152
 ```
+
+These commands are the same in bash and PowerShell.
 
 The default command (`python -m northstar`) runs the bundled interrupted-pass
 scenario. JSON Lines are the default output; `--pretty` provides compact
@@ -164,7 +176,11 @@ human-readable events.
 ## Test plan
 
 - Round-trip frames with encryption and authentication.
-- Reject bad magic, modified payloads, and wrong keys.
+- Reject modified headers and payloads, wrong keys, and version 1 frames.
+- Confirm one stream can fill several slots per tick within the byte budget,
+  and that the 150 KB real-orbit model finishes in the first pass.
+- Transfer a file over real sockets and verify its SHA-256.
+- Confirm a closing shim contact reaches a blocked peer within two seconds.
 - Confirm high-priority messages are selected before bulk model data.
 - Drop a chunk, age it past its timeout, and verify retransmission.
 - Run the sample scenario and assert interruption, resume, and completion.
@@ -175,7 +191,8 @@ human-readable events.
 
 ## Known limitations and future work
 
-- Replace the educational cipher with TLS 1.3/QUIC or an audited AEAD design.
+- Add key exchange, key rotation, and replay protection, or carry OSPS over
+  TLS 1.3/QUIC.
 - Model propagation, Doppler, RF weather, and asymmetric links.
 - Add inter-satellite multi-hop routing and custody transfer.
 - Persist forwarding state to disk and define crash consistency.

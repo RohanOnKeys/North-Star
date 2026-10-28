@@ -1,10 +1,12 @@
+"""Tests for Skyfield pass prediction."""
+
 from collections import defaultdict
 from datetime import timedelta
 from pathlib import Path
 import unittest
 
 from osps.orbital import predict_from_config
-from osps.cli import load_config
+from northstar.cli import load_config
 from osps.simulation import build_simulator
 
 
@@ -13,6 +15,8 @@ SCENARIO = ROOT / "scenarios" / "real_orbits.json"
 
 
 class OrbitalTests(unittest.TestCase):
+    """Predicted pass windows from the bundled TLEs."""
+
     @classmethod
     def setUpClass(cls):
         cls.config = load_config(SCENARIO)

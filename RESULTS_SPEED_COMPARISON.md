@@ -1,5 +1,12 @@
 # North Star Lab Results, Speed, and OSPS Protocol Comparison
 
+> **Version note.** The measurements below were taken on June 19, 2026 with
+> v0.2. Version 0.3 replaced the XOR cipher with ChaCha20-Poly1305, merged the
+> two frame formats into one (version 2, 48 bytes of fixed overhead), let the
+> simulator send several chunks per stream per tick, and made the shim close
+> contacts promptly. The v0.2 numbers are kept as a historical record; rerun
+> the commands at the end of this file for current figures.
+
 ## Executive summary
 
 The North Star lab demonstrated reliable file delivery across repeated,
@@ -25,7 +32,7 @@ claim like "X% faster than HTTP/3" can be made yet.
 On June 19, 2026, LIVE-SIM ran three independent processes:
 
 ```text
-satellite_node.py  <---- TCP ---->  channel_shim.py  <---- TCP ---->  ground_station.py
+northstar satellite  <---- TCP ---->  northstar shim  <---- TCP ---->  northstar ground
 ```
 
 The channel used bundled TLEs and Skyfield passes over Bengaluru. It refused
@@ -92,11 +99,11 @@ percentage overhead. Larger chunks do the reverse.
 
 Run:
 
-```powershell
+```bash
 python -m benchmarks.framing_benchmark --iterations 2000
 ```
 
-The current development machine measured:
+The v0.2 development machine measured:
 
 | Operation | Throughput |
 |---|---:|
@@ -106,9 +113,10 @@ The current development machine measured:
 This measures Python framing only. It excludes sockets, orbital gaps, disks,
 and packet loss.
 
-The current byte-by-byte XOR implementation would bottleneck links above
-roughly 23–27 Mbit/s. It is unsuitable for serious S-band, X-band, Ka-band,
-or optical throughput. Production work needs audited native cryptography.
+The v0.2 byte-by-byte XOR implementation would bottleneck links above
+roughly 23 to 27 Mbit/s, which is unsuitable for serious S-band, X-band,
+Ka-band, or optical throughput. Version 0.3 replaced it with native
+ChaCha20-Poly1305.
 
 ## Comparison with available protocols
 
@@ -119,7 +127,7 @@ or optical throughput. Production work needs audited native cryptography.
 | Receiver progress after restart | Yes | Not inherent | Not inherent | Persistent retention model |
 | Multi-hop orbital routing | No | No | No | Yes |
 | Independent multiplexed streams | Limited priority queues | HTTP/2 supports them | Strong support | Bundles rather than QUIC streams |
-| Security today | Educational only | Mature TLS | TLS 1.3 integrated | BPSec and secure convergence layers |
+| Security today | Audited AEAD, static PSK, no key exchange | Mature TLS | TLS 1.3 integrated | BPSec and secure convergence layers |
 | Congestion control | Simplified | Mature TCP | Mature QUIC | Usually convergence-layer dependent |
 | Interoperability | None | Very high | High | Space/DTN standard |
 | Current app framing efficiency | 99.76% | Configuration-dependent | Configuration-dependent | Bundle-size dependent |
@@ -201,7 +209,7 @@ proven claim is **resilience**, not speed dominance.
 
 ## Reproduce the measurements
 
-```powershell
+```bash
 python -m unittest discover -s tests -v
 python -m benchmarks.framing_benchmark --iterations 2000
 ```
@@ -210,7 +218,7 @@ Run LIVE-SIM using the three commands in [README.md](README.md).
 
 ## Primary references
 
-- [RFC 9114 — HTTP/3](https://www.rfc-editor.org/rfc/rfc9114.html)
-- [RFC 9000 — QUIC](https://www.rfc-editor.org/rfc/rfc9000.html)
-- [RFC 9171 — Bundle Protocol Version 7](https://www.rfc-editor.org/rfc/rfc9171.html)
-- [CCSDS 734.2-B-1 — Bundle Protocol](https://public.ccsds.org/Pubs/734x2b1.pdf)
+- [RFC 9114: HTTP/3](https://www.rfc-editor.org/rfc/rfc9114.html)
+- [RFC 9000: QUIC](https://www.rfc-editor.org/rfc/rfc9000.html)
+- [RFC 9171: Bundle Protocol Version 7](https://www.rfc-editor.org/rfc/rfc9171.html)
+- [CCSDS 734.2-B-1: Bundle Protocol](https://public.ccsds.org/Pubs/734x2b1.pdf)

@@ -9,6 +9,7 @@ import wave
 
 
 def generate(directory: Path) -> list[Path]:
+    """Write the three synthetic tone WAV files and return their paths."""
     directory.mkdir(parents=True, exist_ok=True)
     paths = []
     rate = 8_000
