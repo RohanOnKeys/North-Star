@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 
 from osps.orbital import predict_from_config
-from osps.cli import load_config
+from northstar.cli import load_config
 from osps.simulation import build_simulator
 
 

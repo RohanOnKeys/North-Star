@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 
 from northstar.live import generate_payload, send_file, serve_receiver
-from northstar.orbital import predict_from_config
+from osps.orbital import predict_from_config
 
 from .profile import derive_optical_windows
 

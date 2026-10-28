@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 import random
 import socket
@@ -10,8 +9,9 @@ import threading
 import time
 from pathlib import Path
 
-from northstar.live import log, receive_packet, send_packet
-from northstar.orbital import predict_from_config
+from osps.orbital import predict_from_config
+
+from .live import log, receive_packet, send_packet
 
 
 def pipe_packets(
@@ -25,6 +25,7 @@ def pipe_packets(
     randomizer: random.Random,
     label: str,
 ) -> None:
+    """Forward packets one way, applying loss, shaping, and the deadline."""
     while time.monotonic() < deadline:
         payload = receive_packet(source)
         if randomizer.random() < loss_rate:
@@ -49,9 +50,11 @@ def bridge(
     jitter_ms: float,
     randomizer: random.Random,
 ) -> None:
+    """Relay both directions until the deadline or either side fails."""
     errors: list[Exception] = []
 
     def run(source, destination, label):
+        """Pipe one direction and record the error that ended it."""
         try:
             pipe_packets(
                 source,
@@ -86,31 +89,22 @@ def bridge(
         log("channel_bridge_ended", reason=str(errors[0]))
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="North Star orbital channel shim")
-    parser.add_argument(
-        "--scenario", type=Path, default=Path("scenarios/live_real_orbits.json")
-    )
-    parser.add_argument("--listen-host", default="127.0.0.1")
-    parser.add_argument("--listen-port", type=int, default=9101)
-    parser.add_argument("--ground-host", default="127.0.0.1")
-    parser.add_argument("--ground-port", type=int, default=9100)
-    parser.add_argument(
-        "--time-scale",
-        type=float,
-        default=None,
-        help="simulation seconds per wall-clock second; defaults to TIME_SCALE or 1",
-    )
-    args = parser.parse_args()
-    config = json.loads(args.scenario.read_text(encoding="utf-8"))
-    start, predicted = predict_from_config(config, Path.cwd())
+def run_shim(
+    scenario: Path,
+    project_root: Path,
+    *,
+    listen_host: str = "127.0.0.1",
+    listen_port: int = 9101,
+    ground_host: str = "127.0.0.1",
+    ground_port: int = 9100,
+    time_scale: float = 1.0,
+) -> int:
+    """Serve the predicted pass schedule between sender and ground station."""
+    config = json.loads(scenario.read_text(encoding="utf-8"))
+    start, predicted = predict_from_config(config, project_root)
     if not predicted:
         raise SystemExit("No predicted contacts in scenario")
-    scale = args.time_scale
-    if scale is None:
-        import os
-
-        scale = float(os.environ.get("TIME_SCALE", "1"))
+    scale = time_scale
     first_start = predicted[0].start
     schedule = [
         {
@@ -129,7 +123,7 @@ def main() -> int:
     last_refusal_log = 0.0
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.bind((args.listen_host, args.listen_port))
+        server.bind((listen_host, listen_port))
         server.listen()
         server.settimeout(0.1)
         log(
@@ -167,9 +161,7 @@ def main() -> int:
                 satellite.close()
                 continue
             try:
-                ground = socket.create_connection(
-                    (args.ground_host, args.ground_port), timeout=2
-                )
+                ground = socket.create_connection((ground_host, ground_port), timeout=2)
             except OSError as exc:
                 log("ground_unavailable", reason=str(exc))
                 satellite.close()
@@ -194,7 +186,3 @@ def main() -> int:
             log("contact_closed", satellite=contact["name"])
         log("schedule_exhausted")
     return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
